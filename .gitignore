@@ -1,0 +1,7 @@
+*.RData
+*.Rhistory
+AutomatedFeatureGeneration/02_Codes/.metadata/
+AutomatedFeatureGeneration/02_Codes/.recommenders/caches/identified-project-coordinates.json
+AutomatedFeatureGeneration/02_Codes/.recommenders/caches/manual-mappings.json
+AutomatedFeatureGeneration/02_Codes/.recommenders/
+*.pyc
