@@ -5,3 +5,5 @@ AutomatedFeatureGeneration/02_Codes/.recommenders/caches/identified-project-coor
 AutomatedFeatureGeneration/02_Codes/.recommenders/caches/manual-mappings.json
 AutomatedFeatureGeneration/02_Codes/.recommenders/
 *.pyc
+/.metadata/
+_.recommenders/
