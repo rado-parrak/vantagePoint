@@ -12,7 +12,7 @@ import pyspark.sql.functions as F
 import pandas
 from utils import tools
 import numpy as np
-from libs.utils.tools import ECDF
+from utils.tools import ECDF
 from pyspark.ml.feature import Bucketizer, Binarizer
 from scipy.stats import norm
 

@@ -5,7 +5,7 @@ Created on Apr 10, 2018
 '''
 
 from pyspark.ml import Pipeline
-from libs.featureGenerator.customTransformers.Transformers import *
+from featureGenerator.customTransformers.Transformers import *
 from featureGenerator.pipelineDefinitions import PipelineDefs
 from featureGenerator.pipelineUtils import constructPipeline
 from utils.hardcodedvariables import featureGenerationController

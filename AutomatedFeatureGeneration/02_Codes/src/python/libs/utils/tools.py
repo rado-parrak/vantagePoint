@@ -12,10 +12,10 @@ def printEnv():
     print("****************************************************************************")
 
 def makeConnection(appName):
+#        .set("spark.executor.instances", "10") 
+#        .set("spark.executor.memory", "500MB") 
+#        .set("spark.executor.cores", "10") 
     sparkconfig= SparkConf() \
-        .set("spark.executor.instances", "10") \
-        .set("spark.executor.memory", "500MB") \
-        .set("spark.executor.cores", "10") \
         .set("spark.debug.maxToStringFields", "1000") 
     sparksession = SparkSession \
         .builder \
