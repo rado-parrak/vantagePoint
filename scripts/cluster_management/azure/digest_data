@@ -1,0 +1,91 @@
+# clear output
+echo -n "" > digest_meas.txt
+echo -n "" > digest_featgen.txt
+echo -n "" > digest.txt
+
+# technical data from runstep
+echo "--- CONFIGURATION ---" >> digest.txt
+CONFIG=$(cat runTest | grep "SUBMIT_CONFIG=" | cut -d "$" -f 2)
+echo "CONFIG $CONFIG" >> digest.txt
+#OPTS="$(cat runTest | grep -m 1 -A 50 $CONFIG | sed 's/\\//g' | sed 's/--/\n--/g' | sort)"
+OPTS="$(cat runTest | sed -n "/$CONFIG/,/SUBMIT_CONFIG/p" | grep -v SUBMIT_CONFIG | sed 's/\\//g' | sed 's/--/\n--/g' | sort)"
+echo "$OPTS" | while read i; do
+  if [[ "$i" == "--"*  ]]; then
+    str=${i:2}
+	str=${str//=/ }
+    echo $str >> digest.txt
+  fi
+done
+
+# first pass: filter
+for i in meas_ingest.txt meas_bashscript.txt meas_featgen.txt; do
+
+  #cat $i | grep "__MEASURE__" >> digest_meas.txt
+  #cat $i | grep "| Generating features for column:" >> digest_featgen.txt
+ 
+  # do the measurements, this file needed for feature generation
+  cat $i | grep "__MEASURE__" | while read j; do
+    TAG=$(echo $j | cut -d _ -f 1)
+	LABEL=$(echo $j | cut -d ' ' -f 2-255 | cut -d : -f 1,2)
+	TIME=$(echo $j | rev | cut -d ' ' -f 1 | rev)
+	echo $TAG $TIME $LABEL >> digest_meas.txt
+  done
+  
+  # do featgen
+  cat $i | grep "| Generating features for column:" | while read j; do
+    LABEL=$(echo $j | cut -d '|' -f 2 | cut -d ':' -f 2)
+	TIME="$(echo $j | cut -d '|' -f 1)"
+	EPOCH=$(date "+%s.%N" -d "$TIME")
+	echo "$EPOCH $LABEL" >> digest_featgen.txt
+  done
+  #cat digest_meas.txt | grep "START(.*[0-9])" | cut -d ' ' -f 2-255 >> digest_featgen.txt
+
+done
+
+# second pass: format
+echo "--- MEASURE ---" >> digest.txt
+cat digest_meas.txt | sort | while read j; do 
+  read k
+  TAG1=$(echo $j | cut -d ' ' -f 1)
+  TIME1=$(echo $j | cut -d ' ' -f 2)
+  LABEL1=$(echo $j | cut -d '(' -f 2 | cut -d ')' -f 1)
+  TAG2=$(echo $k | cut -d ' ' -f 1)
+  TIME2=$(echo $k | cut -d ' ' -f 2)
+  if [ "$TAG1" != "$TAG1" ]; then
+    echo "TAG MISMATCH IN: '$j' '$k'"
+  fi
+  DTIME=$( bc <<< "scale=20;$TIME2-$TIME1")
+  NFEAT=$(echo $LABEL1 | rev | cut -d ' ' -f 1 | rev)
+  if ! [[ "$NFEAT" =~ ^[0-9]+$ ]]; then
+    NFEAT=0
+  fi
+  if [[ "$k" != *"FAILED"* ]]; then
+    echo "\"$LABEL1\" $TAG1 $NFEAT $TIME1 $TIME2 $DTIME " >> digest.txt
+  else
+    echo "\"$LABEL1\" $TAG1 $NFEAT $TIME1 $TIME2 0 " >> digest.txt
+  fi
+done
+echo "--- FEATURE GEN ---" >> digest.txt
+PREVLINE="__EMPTY__" 
+declare -A -x FEATMAP
+FEATIDX=1
+cat digest_featgen.txt | sort | while read j; do
+  if [ "$PREVLINE" != "__EMPTY__" ]; then
+    LABEL=$(echo $PREVLINE | cut -d ' ' -f 2-255)
+	TIME1=$(echo $PREVLINE | cut -d ' ' -f 1)
+	TIME2=$(echo $j | cut -d ' ' -f 1)
+    DTIME=$( bc <<< "scale=20;$TIME2-$TIME1")
+	#echo "|$LABEL|${FEATMAP[$LABEL]}|"
+	if [ "${FEATMAP[$LABEL]}" == "" ]; then
+	  #echo "NEW"
+	  FEATMAP[$LABEL]=$FEATIDX
+	  ((FEATIDX++))
+	fi
+    echo "${FEATMAP[${LABEL}]} $DTIME \"$LABEL\"" >> digest.txt
+  fi
+  PREVLINE="$j"  
+done 
+
+# remove temp
+rm -f ./digest_meas.txt
+rm -f ./digest_featgen.txt
