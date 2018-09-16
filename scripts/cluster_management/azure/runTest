@@ -1,0 +1,96 @@
+#!/bin/bash
+
+#USAGE
+#nohup ./runTest > meas_bashscript.txt 2>&1 &
+
+# clean
+hdfs dfs -rm -R -skipTrash input
+hdfs dfs -rm -R -skipTrash features
+
+# package the dependencies
+pushd libs
+zip -r modules.zip ./*
+popd
+
+# configs for yarn submission
+SUBMIT_CONFIG_1BLADE=" \
+ --master yarn --deploy-mode cluster \
+ --driver-memory 5000M \
+ --executor-memory 1100M \
+ --driver-cores 3 \
+ --executor-cores 1 \
+ --num-executors 4 \
+ --conf spark.driver.cores=3 \
+ --conf spark.dynamicAllocation.enabled=false \
+ --conf yarn.resourcemanager.am.max-attempts=1 \
+ --conf spark.yarn.maxAppAttempts=1 \
+ "
+SUBMIT_CONFIG_2BLADE=" \
+ --master yarn --deploy-mode cluster \
+ --driver-memory 11000M \
+ --executor-memory 1500M \
+ --driver-cores 7 \
+ --executor-cores 1 \
+ --num-executors 6 \
+ --conf spark.driver.cores=7 \
+ --conf spark.dynamicAllocation.enabled=false \
+ --conf yarn.resourcemanager.am.max-attempts=1 \
+ --conf spark.yarn.maxAppAttempts=1 \
+ "
+SUBMIT_CONFIG_3BLADE=" \
+ --master yarn --deploy-mode cluster \
+ --driver-memory 11000M \
+ --executor-memory 1500M \
+ --driver-cores 7 \
+ --executor-cores 1 \
+ --num-executors 12 \
+ --conf spark.driver.cores=7 \
+ --conf spark.dynamicAllocation.enabled=false \
+ --conf yarn.resourcemanager.am.max-attempts=1 \
+ --conf spark.yarn.maxAppAttempts=1 \
+ "
+SUBMIT_CONFIG_4BLADE=" \
+ --master yarn --deploy-mode cluster \
+ --driver-memory 11000M \
+ --executor-memory 1500M \
+ --driver-cores 7 \
+ --executor-cores 1 \
+ --num-executors 18 \
+ --conf spark.driver.cores=7 \
+ --conf spark.dynamicAllocation.enabled=false \
+ --conf yarn.resourcemanager.am.max-attempts=1 \
+ --conf spark.yarn.maxAppAttempts=1 \
+ "
+SUBMIT_CONFIG=$SUBMIT_CONFIG_1BLADE
+echo "Submit options= $SUBMIT_CONFIG"
+
+# clean logs
+echo -n "" > meas_ingest.txt
+echo -n "" > meas_featgen.txt
+
+echo "901__MEASURE__ START(bash overall): $(date "+%Y-%m-%d %H:%M.%S at epoch sec %s.%N")"
+
+# run the ingest
+echo "902__MEASURE__ START(bash ingest): $(date "+%Y-%m-%d %H:%M.%S at epoch sec %s.%N")"
+spark-submit $SUBMIT_CONFIG --py-files libs/modules.zip core/dataIngest.py >> meas_ingest.txt 2>&1
+ingestappid=$(cat meas_ingest.txt | grep YarnClient | grep application | rev | cut -d\  -f 1 | rev)
+echo "Application Id for ingest: $ingestappid"
+echo "$(yarn application -status $ingestappid)"
+sleep 60
+yarn logs -applicationId $ingestappid >> meas_ingest.txt 2>&1
+echo "902__MEASURE__ STOP: $(date "+%Y-%m-%d %H:%M.%S at epoch sec %s.%N")"
+
+# run the feature generation
+echo "903__MEASURE__ START(bash featgen): $(date "+%Y-%m-%d %H:%M.%S at epoch sec %s.%N")"
+spark-submit $SUBMIT_CONFIG --py-files libs/modules.zip core/main.py >> meas_featgen.txt 2>&1
+featgenappid=$(cat meas_featgen.txt | grep YarnClient | grep application | rev | cut -d\  -f 1 | rev)
+echo "Application Id for geature generation: $featgenappid"
+echo "$(yarn application -status $featgenappid)"
+sleep 60
+yarn logs -applicationId $featgenappid >> meas_featgen.txt 2>&1
+echo "903__MEASURE__ STOP: $(date "+%Y-%m-%d %H:%M.%S at epoch sec %s.%N")"
+
+echo "901__MEASURE__ STOP: $(date "+%Y-%m-%d %H:%M.%S at epoch sec %s.%N")"
+
+
+
